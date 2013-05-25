@@ -669,6 +669,7 @@ class ExperimentTestCase(TestCase):
 
         experiments = map(create_experiment, range(1,6))
         experiment = experiments[0]
+        experiment2 = experiments[1]
 
         # Create some datasets
         def create_dataset(i):
@@ -684,8 +685,12 @@ class ExperimentTestCase(TestCase):
         self.assertTrue(login)
 
         # Get JSON
-        json_url = reverse('tardis.tardis_portal.views.experiment_datasets_json',
-                           kwargs={'experiment_id': str(experiment.id)})
+        json_url = reverse(
+            'tardis.tardis_portal.views.experiment_datasets_json',
+            kwargs={'experiment_id': str(experiment.id)})
+        json_url2 = reverse(
+            'tardis.tardis_portal.views.experiment_datasets_json',
+            kwargs={'experiment_id': str(experiment2.id)})
 
         # How to check items
         def check_item(item):
@@ -711,11 +716,13 @@ class ExperimentTestCase(TestCase):
             expect(response.status_code).to_equal(200)
             item = json.loads(response.content)
             check_item(item)
+
             # Attempt to remove the dataset from the original experiment
             # Should fail because it would leave the dataset orphaned
             response = client.delete(json_url+str(item['id']),
                                       content_type='application/json')
             expect(response.status_code).to_equal(403)
+
             # Add the dataset to another experiment with PUT
             new_url = reverse('tardis.tardis_portal.views.dataset_json',
                            kwargs={'experiment_id': str(experiments[1].id),
@@ -723,10 +730,13 @@ class ExperimentTestCase(TestCase):
             response = client.put(new_url,
                                   data=json.dumps(item),
                                   content_type='application/json')
+            expect(response.status_code).to_equal(200)
             item = json.loads(response.content)
             check_item(item)
             # This dataset should now have two experiments
-            expect(item['experiments']).to_equal([e.id for e in experiments[:2]])
+            expect(item['experiments']).to_equal(
+                [e.id for e in experiments[:2]])
+
             # Add the rest of the experiments to the dataset
             item['experiments'] = [e.id for e in experiments]
             # Send the revised dataset back to be altered with PUT
@@ -736,19 +746,49 @@ class ExperimentTestCase(TestCase):
             expect(response.status_code).to_equal(200)
             item = json.loads(response.content)
             check_item(item)
-            expect(item['experiments']).to_equal([e.id for e in experiments])
+            expect(item['experiments']).to_equal(
+                [e.id for e in experiments])
+
             # Remove the dataset from the original experiment
             # Should succeed because there are now many more experiments
             response = client.delete(json_url+str(item['id']),
-                                      content_type='application/json')
+                                     content_type='application/json')
             expect(response.status_code).to_equal(200)
             item = json.loads(response.content)
             check_item(item)
             # Expect the item is now in all but the first experiment
-            expect(item['experiments']).to_equal([e.id for e in experiments][1:])
+            expect(item['experiments']).to_equal(
+                [e.id for e in experiments][1:])
             # Check it no longer exists
             response = client.get(json_url+str(item['id']))
             expect(response.status_code).to_equal(404)
+
+            # Lock the first experiment and try adding
+            experiment = Experiment.objects.get(id=experiment.id)
+            experiment.locked = True
+            experiment.save()
+            response = client.put(json_url+str(item['id']),
+                                  data=json.dumps(item),
+                                  content_type='application/json')
+            expect(response.status_code).to_equal(403)
+            experiment = Experiment.objects.get(id=experiment.id)
+            experiment.locked = False
+            experiment.save()
+            expect(item['experiments']).to_equal(
+                [e.id for e in experiments][1:])
+
+            # Lock the 2nd experiment and try adding
+            experiment2 = Experiment.objects.get(id=experiment2.id)
+            experiment2.locked = True
+            experiment2.save()
+            response = client.delete(json_url2+str(item['id']),
+                                     content_type='application/json')
+            expect(response.status_code).to_equal(403)
+            experiment2 = Experiment.objects.get(id=experiment2.id)
+            experiment2.locked = False
+            experiment2.save()
+            expect(item['experiments']).to_equal(
+                [e.id for e in experiments][1:])
 
 
 class ContextualViewTest(TestCase):

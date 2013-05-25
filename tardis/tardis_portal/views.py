@@ -630,7 +630,8 @@ def dataset_json(request, experiment_id=None, dataset_id=None):
 
     # Convenience methods for permissions
     def can_update():
-        return authz.has_dataset_ownership(request, dataset_id)
+        return (not experiment_id or not experiment.locked) and \
+            authz.has_dataset_ownership(request, dataset_id)
     can_delete = can_update
 
     def add_experiments(updated_experiments):
@@ -647,7 +648,8 @@ def dataset_json(request, experiment_id=None, dataset_id=None):
 
     # Update this experiment to add it to more experiments
     if request.method == 'PUT':
-        # Obviously you can't do this if you don't own the dataset
+        # You can't do this if you don't own the dataset or 
+        # the experiment is locked
         if not can_update():
             return HttpResponseForbidden()
         data = json.loads(request.body)
@@ -666,7 +668,8 @@ def dataset_json(request, experiment_id=None, dataset_id=None):
             if can_update():
                 return HttpResponseMethodNotAllowed(allow="GET PUT")
             return HttpResponseMethodNotAllowed(allow="GET")
-        # Cannot remove if this is the last experiment
+        # Cannot remove if this is the last experiment, if the user doesn't
+        # own the dataset or the experiment is locked.
         if not can_delete() or dataset.experiments.count() < 2:
             return HttpResponseForbidden()
         dataset.experiments.remove(experiment)
