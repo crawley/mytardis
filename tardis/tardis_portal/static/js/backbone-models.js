@@ -117,11 +117,25 @@ var MyTardis = (function(){
     },
 
     addTile: function(tile) {
-      var newModel = tile.model.clone();
-      this.collection.add(newModel);
-      newModel.save().done(function() {
-        tile.trigger('tile:copy', tile, this);
-      });
+      var ok = true;
+      var collection = this.collection;
+      var id = tile.model.id;
+      if (collection.find(function(t){return t.id == id})) {
+	// Don't attempt to add a tile if the corresponding dataset is 
+        // already in the target experiment.
+	ok = false;
+      } else {
+        var newModel = tile.model.clone();
+        collection.add(newModel);
+        newModel.save({'wait': true}).fail(function() {
+          // If MyTardis rejected the request, undo the local change we made.
+          collection.remove(newModel)
+	  ok = false;
+        });
+      }
+      // Trigger a copy of the current tile back to the source panel.
+      tile.trigger('tile:copy', tile, this);
+      return ok;
     },
 
     _enableDragDrop: function() {
@@ -133,8 +147,11 @@ var MyTardis = (function(){
         'placeholder': 'thumbnail span6',
         'receive': _.bind(function(event, ui) {
           var datasetTile = ui.item.find('.dataset-tile').prop('view');
-          this.addTile(datasetTile);
-          ui.item.detach();
+          if (this.addTile(datasetTile)) {
+            ui.item.detach();
+          } else {
+            $(ui.sender).sortable('cancel');
+          }
         }, this)
       }).disableSelection();
       // We need the dataset columns to be roughly the same height, or else
