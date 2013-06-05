@@ -147,11 +147,10 @@ var MyTardis = (function(){
         'placeholder': 'thumbnail span6',
         'receive': _.bind(function(event, ui) {
           var datasetTile = ui.item.find('.dataset-tile').prop('view');
-          if (this.addTile(datasetTile)) {
-            ui.item.detach();
-          } else {
+          if (!this.addTile(datasetTile)) {
             $(ui.sender).sortable('cancel');
           }
+          ui.item.detach();
         }, this)
       }).disableSelection();
       // We need the dataset columns to be roughly the same height, or else
