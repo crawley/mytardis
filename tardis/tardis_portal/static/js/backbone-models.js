@@ -126,6 +126,7 @@ var MyTardis = (function(){
 	ok = false;
       } else {
         var newModel = tile.model.clone();
+        newModel.experimentId = collection.experimentId;
         collection.add(newModel);
         newModel.save({'wait': true}).fail(function() {
           // If MyTardis rejected the request, undo the local change we made.
@@ -172,6 +173,7 @@ var MyTardis = (function(){
 
     _buildTile: function(tiles, model) {
       view = new MyTardis.DatasetTile({ 'model': model });
+      view.experimentId = this.collection.experimentId;
       view.render();
       tiles[view.model.id] = view;
       view.on('tile:copy', _.bind(function(tile, destTiles) {
@@ -237,6 +239,7 @@ var MyTardis = (function(){
   var dssize = "0";
   module.DatasetTile = Backbone.View.extend({
     tagName: "div",
+    experimentId: null,
     className: "dataset-tile thumbnail",
     events:  {
       "click a.close": "remove"
@@ -313,7 +316,8 @@ var MyTardis = (function(){
     canRemove: function() {
       if (_.isUndefined(isLoggedIn) || !isLoggedIn())
         return false;
-      return this.model.attributes.experiments.length > 1
+      return this.model.attributes.experiments.length > 1 &&
+             !experimentLocked[this.experimentId];
     },
     remove: function() {
       // Request the model be removed

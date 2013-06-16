@@ -701,6 +701,11 @@ def experiment_datasets_json(request, experiment_id):
 @never_cache
 @authz.experiment_access_required
 def experiment_dataset_transfer(request, experiment_id):
+    try:
+        experiment = Experiment.safe.get(request, experiment_id)
+    except Experiment.DoesNotExist:
+        return return_response_not_found(request)
+
     experiments = Experiment.safe.owned(request)
 
     def get_json_url_pattern():
@@ -708,8 +713,9 @@ def experiment_dataset_transfer(request, experiment_id):
         return reverse('tardis.tardis_portal.views.experiment_datasets_json',
                        args=[placeholder]).replace(placeholder,
                                                    '{{experiment_id}}')
-
+    
     c = Context({
+                 'experiment': experiment,
                  'experiments': experiments.exclude(id=experiment_id),
                  'url_pattern': get_json_url_pattern()
                  });
