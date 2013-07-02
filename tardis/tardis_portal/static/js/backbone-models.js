@@ -322,8 +322,9 @@ var MyTardis = (function(){
     remove: function() {
       // Request the model be removed
       // Note: The server may decline to do so.
-      this.model.destroy({ wait: true });
-      this.trigger('tile:remove', this);
+      this.model.destroy({ wait: true }).done(
+          _.bind(function() this.trigger('tile:remove', this),
+		this));
     }
   });
 
