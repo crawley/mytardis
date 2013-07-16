@@ -148,6 +148,8 @@ REQUIRE_DATAFILE_CHECKSUMS = True
 REQUIRE_DATAFILE_SIZES = True
 REQUIRE_VALIDATION_ON_INGESTION = True
 
+SYNCHRONOUS_VERIFY_FILES = False
+
 DEFAULT_FILE_STORAGE = 'tardis.tardis_portal.storage.MyTardisLocalFileSystemStorage'
 
 # Absolute path to the directory that holds media.

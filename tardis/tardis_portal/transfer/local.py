@@ -30,7 +30,7 @@
 from urllib2 import Request, HTTPError
 from urllib import quote, unquote
 from urlparse import urlparse, urljoin
-from os import path
+from os import path, statvfs
 from contextlib import closing
 
 from django.utils import simplejson
@@ -38,7 +38,8 @@ from django.core.files.storage import FileSystemStorage
 from django.core.files.uploadedfile import TemporaryUploadedFile
 from django.core.exceptions import SuspiciousOperation
 
-from tardis.tardis_portal.util import generate_file_checksums
+from tardis.tardis_portal.util import generate_file_checksums, get_free_space, \
+    parse_scaled_number
 
 from .base import TransferError, TransferProvider
 
@@ -46,6 +47,8 @@ class BaseLocalTransfer(TransferProvider):
     def __init__(self, name, base_url, params):
         TransferProvider.__init__(self, name, base_url)
         self.trust_length = params.get('trust_length', 'False') == 'True'
+        self.min_free_space = parse_scaled_number(
+            params.get('min_free_space', '0'))
         self.metadata_supported = False
 
         # Subclasses need to set these appropriately
@@ -54,6 +57,12 @@ class BaseLocalTransfer(TransferProvider):
 
     def alive(self):
         return True
+
+    def has_space(self, bytes):
+        # These may throw NotImplementedError
+        path = self.storage.path('')
+        free_space = get_free_space(path)
+        return free_space - self.min_free_space < bytes
 
     def get_length(self, replica):
         filename = self._uri_to_filename(replica.url)

@@ -39,3 +39,6 @@ class TransferProvider(object):
 
     def get_file(self, replica):
         return self.get_opener(replica)()
+
+    def has_space(self, bytes):
+        raise NotImplementedError

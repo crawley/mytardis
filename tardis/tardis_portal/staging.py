@@ -141,6 +141,15 @@ def stage_replica(replica):
     from tardis.tardis_portal.models import Replica, Location
     if not replica.location.type == 'external':
         raise ValueError('Only external replicas can be staged')
+
+    location = Location.get_default_location()
+    try:
+        if not location.provider.has_space(replica.datafile.size):
+            logging.debug('Insufficient space to upload file (size %s bytes)' %
+                          datafile.size)
+            return False
+    except NotImplementedError:
+        pass
     with TemporaryUploadedFile(replica.datafile.filename, 
                                None, None, None) as tf:
         if replica.verify(tempfile=tf.file):
@@ -150,7 +159,7 @@ def stage_replica(replica):
                     datafile=replica.datafile,
                     url=write_uploaded_file_to_dataset(\
                         replica.datafile.dataset, tf),
-                    location=Location.get_default_location(),
+                    location=location,
                     verified=True,
                     protocol='')
                 target_replica.save()

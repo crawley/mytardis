@@ -38,7 +38,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.log import dictConfig
 
-from tardis.tardis_portal.util import get_free_space
+from tardis.tardis_portal.util import get_free_space, parse_scaled_number
 from tardis.tardis_portal.models import Replica, Location, Dataset, \
     Dataset_File, Experiment
 
@@ -332,16 +332,9 @@ class Command(BaseCommand):
             raise CommandError("missing <amount> argument")
         elif len(args) > 1:
             raise CommandError("multiple <amount> arguments")
-        pat = re.compile(r"^(\d+(?:\.\d+)?)([kmgtKMGT]?)$")
-        res = pat.match(args[0])
-        if res:
-            amount = float(res.group(1))
-            scale = res.group(2).lower()
-            factor = {'': 1, 'k': 1024, 'm': 1048576,
-                      'g': 1073741824, 't': 1099511627776}.get(scale)
-            amount = amount * factor
-            return long(amount)
-        else:
+        try:
+            return parse_scaled_number(args[0])
+        except ValueError:
             raise CommandError("<amount> argument (%s) must be a non-negative" \
                                " number followed  by an optional scale" \
                                " factor (K, M, G or T)" % args[0])

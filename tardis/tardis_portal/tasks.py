@@ -11,6 +11,7 @@ from tardis.tardis_portal.email import email_user
 from django.template import Context
 
 from django.contrib.sites.models import Site
+from django.conf import settings
 
 from tardis.tardis_portal.staging import stage_replica
 from tardis.tardis_portal.models import Replica, Location
@@ -29,11 +30,18 @@ except Exception:
 
 @task(name="tardis_portal.verify_files", ignore_result=True)
 def verify_files():
+    synchronous = getattr(settings, 'SYNCHRONOUS_VERIFY_FILES', False)
     for replica in Replica.objects.filter(verified=False).exclude(protocol='staging'):
         if replica.stay_remote or replica.is_local():
-            verify_as_remote.delay(replica.id)
+            if synchronous:
+                verify_as_remote(replica.id)
+            else:
+                verify_as_remote.delay(replica.id)
         else:
-            make_local_copy.delay(replica.id)
+            if synchronous:
+                make_local_copy(replica.id)
+            else:
+                make_local_copy.delay(replica.id)
 
 @task(name="tardis_portal.verify_as_remote", ignore_result=True)
 def verify_as_remote(replica_id):
